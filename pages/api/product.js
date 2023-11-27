@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   );
 
   let x = await resp.json();
-  console.log(x.data.product);
+  // console.log(x.data.product);
   let images = [];
 
   for (const m of x.data.product.images.main.url) {
