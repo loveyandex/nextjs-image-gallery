@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     });
   }
 
-  console.log(x.data.product.images);
+  // console.log(x.data.product.images);
   for (const l of x.data.product.images.list) {
     for (const m of l.url) {
       images.push({

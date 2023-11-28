@@ -3,7 +3,7 @@ import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Bridge from "../components/Icons/Bridge";
 import Logo from "../components/Icons/Logo";
 import Modal from "../components/Modal";
@@ -12,9 +12,72 @@ import getBase64ImageUrl from "../utils/generateBlurPlaceholder";
 import type { ImageProps } from "../utils/types";
 import { useLastViewedPhoto } from "../utils/useLastViewedPhoto";
 
+export const isBrowser = typeof window !== "undefined";
+
 const Home: NextPage = ({ images }: { images: ImageProps[] }) => {
   const router = useRouter();
-  const { photoId } = router.query;
+  const { photoId, ip } = router.query;
+  console.log(router.query);
+
+  const [wsInstance, setWsInstance] = useState(null);
+
+  // Call when updating the ws connection
+  const updateWs = useCallback(
+    (url) => {
+      if (!isBrowser) return setWsInstance(null);
+
+      // Close the old connection
+      if (wsInstance?.readyState !== 3) wsInstance.close();
+
+      // Create a new connection
+      const newWs = new WebSocket(url);
+      setWsInstance(newWs);
+    },
+    [wsInstance]
+  );
+
+  // (Optional) Open a connection on mount
+  useEffect(() => {
+    if (isBrowser && router.query.ip) {
+      console.log(router.query);
+      const ws = new WebSocket(`ws://${ip?ip:"localhost"}:80/ws`);
+      console.log("we are here ");
+
+      ws.onopen = function () {
+        console.log("Connected");
+      };
+
+      ws.onmessage = function (evt) {
+        let d = JSON.parse(evt.data);
+        console.log(evt);
+        setNews((oldArray) => [
+          ...oldArray,
+          {
+            id: d.Pid,
+            height: 2329,
+            width: 3500,
+            public_id: d.Src,
+            format: "jpg",
+            caption: d.Pid,
+            blurDataUrl:
+              "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEBLAEsAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAFAAgDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAB//EABwQAAICAgMAAAAAAAAAAAAAAAEDAhEABBITcf/EABQBAQAAAAAAAAAAAAAAAAAAAAP/xAAbEQACAgMBAAAAAAAAAAAAAAABAgAREiEiMf/aAAwDAQACEQMRAD8AMduKkwXJK+PYKIJuvMBXd+WN1GOI2B7P/9k=",
+          },
+        ]);
+      };
+
+      setWsInstance(ws);
+    }
+
+    return () => {
+      // Cleanup on unmount if ws wasn't closed already
+      if (wsInstance ) {
+        if (wsInstance?.readyState !== 3) wsInstance.close();
+        
+      }
+
+    };
+  },[router.query]);
+
   const [lastViewedPhoto, setLastViewedPhoto] = useLastViewedPhoto();
 
   const lastViewedPhotoRef = useRef<HTMLAnchorElement>(null);
@@ -30,29 +93,32 @@ const Home: NextPage = ({ images }: { images: ImageProps[] }) => {
   const [news, setNews] = useState([]);
 
   useEffect(() => {
-    fetch("/api/hello/?page=" + 66)
-      .then((r) => r.json())
-      .then((j) => {
-        console.log(j);
-        for (const x of j.ps) {
-          setNews((oldArray) => [...oldArray, x]);
+    console.log("in useeffect");
 
-          setInterval(
-            (xxx) => {
-              fetch("/api/product/?pid=" + xxx.id)
-                .then((r) => r.json())
-                .then((jjj) => {
-                  for (const xx of jjj.ps) {
-                    setNews((oldArray) => [...oldArray, xx]);
-                  }
-                });
-            },
-            1000,
-           x
-          );
-        }
-      })
-      .catch((er) => console.log(er));
+    // fetch("/api/hello/?page=" + 66)
+    //   .then((r) => r.json())
+    //   .then((j) => {
+    //     console.log(j);
+    //     for (const x of j.ps) {
+    //       setNews((oldArray) => [...oldArray, x]);
+
+    //       setInterval(
+    //         (xxx) => {
+    //           fetch("/api/product/?pid=" + xxx.id)
+    //             .then((r) => r.json())
+    //             .then((jjj) => {
+    //               // console.log(news)
+    //               for (const xx of jjj.ps) {
+    //                 setNews((oldArray) => [...oldArray, xx]);
+    //               }
+    //             });
+    //         },
+    //         1000,
+    //        x
+    //       );
+    //     }
+    //   })
+    //   .catch((er) => console.log(er));
 
     return () => {};
   }, [photoId]);
@@ -76,7 +142,21 @@ const Home: NextPage = ({ images }: { images: ImageProps[] }) => {
       .xcss{
         columns: 9 !important;
        }
+       .grid-cols-3 {
+        grid-template-columns: repeat(3,minmax(0,1fr));
     }
+
+
+
+    .grid-cols-4 {
+      grid-template-columns: repeat(9,minmax(0,1fr));
+  }
+
+  
+    }
+
+
+
       `}</style>
       <main className="mx-auto max-w-[1960px] p-4">
         {photoId && (
@@ -87,7 +167,7 @@ const Home: NextPage = ({ images }: { images: ImageProps[] }) => {
             }}
           />
         )}
-        <div className="xcss columns-1 gap-4 sm:columns-2 xl:columns-3 2xl:columns-4">
+        <div className="xcss grid columns-1 grid-cols-1 grid-cols-4 gap-1 sm:columns-2 sm:grid-cols-2 xl:columns-3 xl:grid-cols-3 2xl:columns-4">
           <div className="after:content relative mb-5 flex h-[629px] flex-col items-center justify-end gap-4 overflow-hidden rounded-lg bg-white/10 px-6 pb-16 pt-64 text-center text-white shadow-highlight after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:shadow-highlight lg:pt-0">
             <div className="absolute inset-0 flex items-center justify-center opacity-20">
               <span className="flex max-h-full max-w-full items-center justify-center">
